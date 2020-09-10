@@ -1,0 +1,93 @@
+#include <iostream>
+#include <stdio.h>
+#include <windows.h>
+#include <math.h>
+using namespace std;
+
+int main()
+{
+	char *FPool = NULL;
+	int x;
+	DWORD oldProtect;
+
+	HANDLE IDStandartPool = GetProcessHeap(); //Получение ID пула
+	FPool = (char*)HeapAlloc(IDStandartPool, HEAP_ZERO_MEMORY, 10240);//1024); //Выделение блока памяти, заполненного нулями, 1Кб в стандартном пуле
+
+
+	char *Virtual = (char*)VirtualAlloc(NULL, sizeof(char) * 10, MEM_RESERVE, PAGE_READONLY);
+	if (VirtualAlloc(Virtual, sizeof(char), MEM_COMMIT, PAGE_READONLY))
+	{
+		if (VirtualProtect(Virtual, sizeof(char), PAGE_READWRITE, &oldProtect) && FPool != NULL)
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				FPool[i] = rand();
+			}
+			cout << FPool << " " << endl;
+
+
+			int k = 0;
+			for (int i = 0; i < 10; i++)
+			{
+				
+				__try
+				{
+					Virtual[k] = FPool[9 - i];
+					k++;
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					unsigned long ex = GetExceptionCode();
+					cout << "Exception execute handler exception code: " << ex << endl << endl;
+					VirtualProtect(Virtual, sizeof(int), PAGE_READWRITE, &oldProtect);
+				}
+			}
+
+			if (VirtualProtect(Virtual, sizeof(int), PAGE_READONLY, &oldProtect) && FPool != NULL)
+			{
+				__try
+				{
+					Virtual[1] = 1111;
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					unsigned long ex = GetExceptionCode();
+					cout << "Exception(readonly) execute handler exception code: " << ex << endl << endl;
+					VirtualProtect(Virtual, sizeof(int), PAGE_READONLY, &oldProtect);
+				}
+			}
+
+			for (int i = 0; i < 10; i++)
+			{
+				cout << Virtual[i] << " ";
+			}
+			cout << endl << endl;
+
+			if (VirtualProtect(Virtual, sizeof(int), PAGE_NOACCESS, &oldProtect) && FPool != NULL)
+			{
+				__try
+				{
+					cout << Virtual[1] << endl;
+				}
+				__except (EXCEPTION_EXECUTE_HANDLER)
+				{
+					unsigned long ex = GetExceptionCode();
+					cout << "Exception(No access) execute handler exception code: " << ex << endl << endl;
+					VirtualProtect(Virtual, sizeof(int), PAGE_READONLY, &oldProtect);
+				}
+			}
+			HeapFree(IDStandartPool, HEAP_ZERO_MEMORY, FPool);
+			VirtualFree(Virtual, 0, MEM_RELEASE);
+			system("pause");
+			return 0;
+		}
+		else
+		{
+			std::cout << "Error protect else pool";
+		}
+	}
+	else
+	{
+		std::cout << "Error alloc";
+	}
+}
